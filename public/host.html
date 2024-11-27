@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host</title>
+</head>
+<body>
+    <h1>Host</h1>
+    <button id="shareScreen">Start Sharing</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const peerConnection = new RTCPeerConnection();
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) socket.emit('candidate', event.candidate);
+        };
+
+        document.getElementById('shareScreen').addEventListener('click', async () => {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('offer', peerConnection.localDescription);
+        });
+
+        socket.on('answer', async (answer) => {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.on('candidate', async (candidate) => {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+    </script>
+</body>
+</html>
